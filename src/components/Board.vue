@@ -1,5 +1,5 @@
 <script lang="ts">
-import { defineComponent, ref, onMounted, onUnmounted } from 'vue'
+import { defineComponent, ref, computed, onMounted, onUnmounted, ComputedRef } from 'vue'
 
 enum Color {
   tile2 = '#FFC43D',
@@ -26,6 +26,7 @@ interface Tile {
   x: number,
   y: number,
   value: number,
+  id: string,
 }
 
 export default defineComponent({
@@ -34,83 +35,130 @@ export default defineComponent({
     
   },
   setup: () => {
+    const id = ref(1);
     const size = 4;
     const tiles = ref<Tile[]>([
-      {x: 1, y: 3, value: 2},
-      {x: 1, y: 2, value: 4},
-      {x: 1, y: 1, value: 8},
-      {x: 1, y: 4, value: 16},
-      {x: 2, y: 1, value: 32},
-      {x: 3, y: 1, value: 64},
+      {x: 2, y: 1, value: 2, id: `mrdka${id.value}` },
     ]);
 
-    const sortTiles = (direction: Direction, tiles: Tile[]) => {
+    const findEmptyCells = () => {
+      const cells = [];
+      for(let x: any = 1; x <= size; x++) {
+        for(let y: any = 1; y <= size; y++) {
+          if(!tiles.value.find((tile) => tile.x === x && tile.y === y)) {
+            cells.push({x, y});
+          }
+        }
+      }
+      return cells;
+    };
+
+    const generateNewTile = () => {
+      const tileValue = Math.random() > 0.85 ? 4 : 2;
+      const randomEmptyCell = findEmptyCells()[Math.floor(Math.random() * findEmptyCells().length)];
+      id.value += 1;
+      tiles.value.push({
+        x: randomEmptyCell.x,
+        y: randomEmptyCell.y,
+        value: tileValue,
+        id: `mrdka${id.value}`
+      });
+    };
+
+    const sortCallback = (direction: Direction) => {
       switch(direction) {
         case Direction.RIGHT: 
-          return tiles.sort((a, b) => {return b.x-a.x}) // Descendant sort
+          return (a: Tile, b: Tile) => {return b.x-a.x} // Descendant sort
           break;
-        // case Direction.DOWN: 
-        //   return tiles.sort((a, b) => {return a.y-b.y}) // Ascendant sort
-        //   break;
+        case Direction.DOWN: 
+          return (a: Tile, b: Tile) => {return b.y-a.y} // Descendant sort
+          break;
         case Direction.LEFT: 
-          return tiles.sort((a, b) => {return a.x-b.x}) // Ascendant sort
+          return (a: Tile, b: Tile) => {return a.x-b.x} // Ascendant sort
           break;
-        // case Direction.UP: 
-        //   return tiles.sort((a, b) => {return b.y-a.y}) // Descendant sort
-        //   break;
-        default: 
-          return [];
+        case Direction.UP: 
+          return (a: Tile, b: Tile) => {return a.y-b.y} // Ascendant sort
+          break;
       }
     };
 
-    const moveRight = (direction: Direction): void => {
+    const moveTiles = (direction: Direction): void => {
       const axis = (direction === Direction.RIGHT || direction === Direction.LEFT) ? 'x' : 'y';
-      const mood = (direction === Direction.RIGHT || direction === Direction.UP) ? 1 : -1; // positive or negative mood
+      const mood = (direction === Direction.RIGHT || direction === Direction.DOWN) ? 1 : -1; // positive or negative mood
+      const limitPosition = (direction === Direction.RIGHT || direction === Direction.DOWN) ? 4 : 1; // positive or negative mood
+
+      // console.log('axis: ', axis);
+      // console.log('limitPosition: ', limitPosition);
       
       for(let i: any = 1; i <= size; i++) {
         // Filter tiles for each row and sort
-        const tilesInRow: Tile[] = tiles.value.filter((tile) => {
+        const tilesInRow: ComputedRef<Tile[]> = computed(() => tiles.value.filter((tile) => {
           if(direction === Direction.RIGHT || direction === Direction.LEFT) {
             return i === tile.y;
           } else {
             return i === tile.x;
           }
-        });
+        }).sort(sortCallback(direction)));
 
-        let moveLenght: number = 4 - tilesInRow.length;
+        tilesInRow.value.map((tile, index, sortedTiles) => {
+          const isNextTileMergeable = !!sortedTiles[index - 1] && sortedTiles[index - 1].value === tile.value;
+          const isNextNextTileMergeable = !!sortedTiles[index - 2] && sortedTiles[index - 2].value === tile.value;
+          const isNextTileOccupied = !!sortedTiles[index - 1] && sortedTiles[index - 1][axis] === tile[axis] + mood;
+          // let moveLenght = 4 - sortedTiles.length;
+          // console.log('sortedTiles: ', sortedTiles);
+          // console.log('isNextMergeable', isNextTileMergeable);
+          // console.log('isNextTileOccupied', isNextTileOccupied);
 
-        sortTiles(direction, tilesInRow).map((tile, index, sortedTiles) => {
-          const isNextTileMergeable: boolean = !!sortedTiles[index - 1] && sortedTiles[index - 1].value === tile.value;
-          const isNextTileOccupied: boolean = !!sortedTiles[index - 1] && sortedTiles[index - 1][axis] === tile[axis] + 1;
+          // if(index === 2) {
+          //   console.log(sortedTiles[1]);
+          // }
+          console.log('Mergeable first: ' + isNextTileMergeable);
+          console.log('Mergeable second: ' + isNextNextTileMergeable);
+          if(isNextTileMergeable && !isNextNextTileMergeable) {
+            tile[axis] = !!sortedTiles[index - 1] ? sortedTiles[index - 1][axis]: limitPosition;
+            const tileToUpdateIndex = tiles.value.findIndex((target) => sortedTiles[index - 1].id === target.id);
+            tiles.value[tileToUpdateIndex].value = tiles.value[tileToUpdateIndex].value * 2;
+            tiles.value.splice(tiles.value.findIndex((target) => target.id === tile.id), 1);
+          } 
           
-          if(tile[axis] === 4 || (isNextTileOccupied && !isNextTileMergeable)) {
-            return
-          } else if(isNextTileMergeable) {
-            // Merge tiles
-            sortedTiles[index - 1].value = sortedTiles[index - 1].value * 2;
-            tiles.value.splice(tiles.value.findIndex((target) => target[axis] === tile[axis]), 1);
-            moveLenght += 1;
-          }
+          if((tile[axis] !== limitPosition && !isNextTileOccupied) || (isNextTileMergeable && isNextNextTileMergeable)) {
+            tile[axis] = !!sortedTiles[index - 1] ? sortedTiles[index - 1][axis] - mood: limitPosition;
+          } 
+          // else if(isNextTileMergeable) {
+          //   // Merge tiles
+          //   setTimeout(() => {
+          //     // const tileInRowToUpdateIndex = tilesInRow.value.findIndex((target) => sortedTiles[index - 1].id === target.id);
+          //     const tileToUpdateIndex = tiles.value.findIndex((target) => sortedTiles[index - 1].id === target.id);
+          //     tiles.value[tileToUpdateIndex].value = tiles.value[tileToUpdateIndex].value * 2;
+          //     // tilesInRow.value.splice(tiles.value.findIndex((target) => target.id === tile.id), 1);
+          //     tiles.value.splice(tiles.value.findIndex((target) => target.id === tile.id), 1);
+          //   }, 100);
+          //   // moveLenght += moveLenght;
+          // }
 
-          tile[axis] += moveLenght * mood;
+          
+          
         });
       }
+
+      // setTimeout(() => generateNewTile(), 0);
+      generateNewTile();
     };
 
     const checkKey = (event: any) => {
       const keydownEvent = event || window.event;
 
       if (event.keyCode == '38') {
-        moveRight(Direction.UP);
+        moveTiles(Direction.UP);
       }
       else if (event.keyCode == '40') {
-        moveRight(Direction.DOWN);
+        moveTiles(Direction.DOWN);
       }
       else if (event.keyCode == '37') {
-        moveRight(Direction.LEFT);
+        moveTiles(Direction.LEFT);
       }
       else if (event.keyCode == '39') {
-        moveRight(Direction.RIGHT);
+        moveTiles(Direction.RIGHT);
       }
 
     }
@@ -147,6 +195,7 @@ export default defineComponent({
           left: (tile.x - 1)*100 + 'px',
           backgroundColor: Color[`tile${tile.value}`]
         }">
+        <span style="display: block; font-size: 10px">{{tile.id}}</span>
         {{ tile.value }}
       </div>
     </div>
@@ -191,5 +240,6 @@ $size: 100px;
   align-items: center;
   font-size: 32px;
   color: white;
+  // transition: left 2s ease, top 2s ease;
 }
 </style>
