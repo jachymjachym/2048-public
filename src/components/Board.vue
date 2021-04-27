@@ -1,19 +1,6 @@
 <script lang="ts">
-import { defineComponent, ref, computed, onMounted, onUnmounted, ComputedRef } from 'vue'
-
-enum Color {
-  tile2 = '#FFC43D',
-  tile4 = '#EF476F',
-  tile8 = '#1B9AAA',
-  tile16 = '#06D6A0',
-  tile32 = 'blue',
-  tile64 = 'green',
-  tile128 = 'pink',
-  tile256 = 'red',
-  tile512 = 'violet',
-  tile1024 = 'brown',
-  tile2048 = 'gold',
-}
+import { defineComponent, ref, computed, onMounted, onUnmounted, ComputedRef } from 'vue';
+import SwipeDetect from './SwipeDetect.vue'
 
 enum Direction {
   RIGHT = 'right',
@@ -31,15 +18,26 @@ interface Tile {
 
 export default defineComponent({
   name: 'Board',
-  props: {
-    
+  components: {
+    SwipeDetect,
   },
   setup: () => {
     const id = ref(1);
     const size = 4;
-    const tiles = ref<Tile[]>([
-      {x: 2, y: 1, value: 2, id: `mrdka${id.value}` },
-    ]);
+    const winningNumber = 2048;
+    const tiles = ref<Tile[]>([]);
+    const defeat = ref(false);
+    const gameWon = ref(false);
+
+    const initTile = () => {
+      tiles.value = [];
+      tiles.value.push({
+        x: Math.floor(Math.random() * size + 1),
+        y: Math.floor(Math.random() * size + 1),
+        value: 2,
+        id: `tile${id.value}`
+      });
+    };
 
     const findEmptyCells = () => {
       const cells = [];
@@ -53,16 +51,48 @@ export default defineComponent({
       return cells;
     };
 
+    const isPossibleMove = (): boolean => {
+      const isFullBoard = findEmptyCells().length === 0;
+      let isPossible = false;
+
+      tiles.value.forEach((item, index, tiles) => {
+        const currentTileX = item.x;
+        const currentTileY = item.y;
+        const currentTileValue = item.value;
+
+        isPossible = (
+          !isFullBoard ||
+          isFullBoard &&
+          (currentTileValue === tiles.find((tile) => tile.x === currentTileX + 1 && tile.y === currentTileY)?.value ||
+          currentTileValue === tiles.find((tile) => tile.x === currentTileX - 1 && tile.y === currentTileY)?.value ||
+          currentTileValue === tiles.find((tile) => tile.y === currentTileY + 1 && tile.x === currentTileX)?.value ||
+          currentTileValue === tiles.find((tile) => tile.y === currentTileY - 1 && tile.x === currentTileX)?.value)
+        );
+      });
+
+      return isPossible;
+    };
+
     const generateNewTile = () => {
-      const tileValue = Math.random() > 0.85 ? 4 : 2;
+      const tileValue = Math.random() > 0.9 ? 4 : 2;
       const randomEmptyCell = findEmptyCells()[Math.floor(Math.random() * findEmptyCells().length)];
       id.value += 1;
       tiles.value.push({
         x: randomEmptyCell.x,
         y: randomEmptyCell.y,
         value: tileValue,
-        id: `mrdka${id.value}`
+        id: `tile${id.value}`
       });
+
+      if(!isPossibleMove()) {
+        defeat.value = true;
+      }
+    };
+
+    const resetGame = () => {
+      defeat.value = false;
+      gameWon.value = false;
+      initTile();
     };
 
     const sortCallback = (direction: Direction) => {
@@ -82,13 +112,13 @@ export default defineComponent({
       }
     };
 
+    const indexOfTile = (id: string) => tiles.value.findIndex((target) => id === target.id);
+
     const moveTiles = (direction: Direction): void => {
       const axis = (direction === Direction.RIGHT || direction === Direction.LEFT) ? 'x' : 'y';
       const mood = (direction === Direction.RIGHT || direction === Direction.DOWN) ? 1 : -1; // positive or negative mood
-      const limitPosition = (direction === Direction.RIGHT || direction === Direction.DOWN) ? 4 : 1; // positive or negative mood
-
-      // console.log('axis: ', axis);
-      // console.log('limitPosition: ', limitPosition);
+      const limitPosition = (direction === Direction.RIGHT || direction === Direction.DOWN) ? 4 : 1;
+      let gotUpdated = false;
       
       for(let i: any = 1; i <= size; i++) {
         // Filter tiles for each row and sort
@@ -103,46 +133,34 @@ export default defineComponent({
         tilesInRow.value.map((tile, index, sortedTiles) => {
           const isNextTileMergeable = !!sortedTiles[index - 1] && sortedTiles[index - 1].value === tile.value;
           const isNextNextTileMergeable = !!sortedTiles[index - 2] && sortedTiles[index - 2].value === tile.value;
-          const isNextTileOccupied = !!sortedTiles[index - 1] && sortedTiles[index - 1][axis] === tile[axis] + mood;
-          // let moveLenght = 4 - sortedTiles.length;
-          // console.log('sortedTiles: ', sortedTiles);
-          // console.log('isNextMergeable', isNextTileMergeable);
-          // console.log('isNextTileOccupied', isNextTileOccupied);
-
-          // if(index === 2) {
-          //   console.log(sortedTiles[1]);
-          // }
-          console.log('Mergeable first: ' + isNextTileMergeable);
-          console.log('Mergeable second: ' + isNextNextTileMergeable);
-          if(isNextTileMergeable && !isNextNextTileMergeable) {
+          const isNextPositionOccupied = !!sortedTiles[index - 1] && sortedTiles[index - 1][axis] === tile[axis] + mood;
+          
+          if(isNextTileMergeable && !!tiles.value[indexOfTile(sortedTiles[index - 1].id)]) {
             tile[axis] = !!sortedTiles[index - 1] ? sortedTiles[index - 1][axis]: limitPosition;
-            const tileToUpdateIndex = tiles.value.findIndex((target) => sortedTiles[index - 1].id === target.id);
-            tiles.value[tileToUpdateIndex].value = tiles.value[tileToUpdateIndex].value * 2;
-            tiles.value.splice(tiles.value.findIndex((target) => target.id === tile.id), 1);
-          } 
-          
-          if((tile[axis] !== limitPosition && !isNextTileOccupied) || (isNextTileMergeable && isNextNextTileMergeable)) {
-            tile[axis] = !!sortedTiles[index - 1] ? sortedTiles[index - 1][axis] - mood: limitPosition;
-          } 
-          // else if(isNextTileMergeable) {
-          //   // Merge tiles
-          //   setTimeout(() => {
-          //     // const tileInRowToUpdateIndex = tilesInRow.value.findIndex((target) => sortedTiles[index - 1].id === target.id);
-          //     const tileToUpdateIndex = tiles.value.findIndex((target) => sortedTiles[index - 1].id === target.id);
-          //     tiles.value[tileToUpdateIndex].value = tiles.value[tileToUpdateIndex].value * 2;
-          //     // tilesInRow.value.splice(tiles.value.findIndex((target) => target.id === tile.id), 1);
-          //     tiles.value.splice(tiles.value.findIndex((target) => target.id === tile.id), 1);
-          //   }, 100);
-          //   // moveLenght += moveLenght;
-          // }
+            
+            tiles.value[indexOfTile(sortedTiles[index - 1].id)].value *= 2;
+            tiles.value[indexOfTile(tile.id)].value *= 2;
 
-          
-          
+            if(tiles.value[indexOfTile(tile.id)].value === winningNumber) {
+              gameWon.value = true;
+            }
+
+            tiles.value.splice(indexOfTile(tile.id), 1);
+            gotUpdated = true;
+          } else if(
+            (tile[axis] !== limitPosition && !isNextPositionOccupied) || 
+            (isNextTileMergeable && isNextNextTileMergeable)
+          ) {
+            tile[axis] = !!sortedTiles[index - 1] ? sortedTiles[index - 1][axis] - mood : limitPosition;
+            gotUpdated = true;
+          }
         });
       }
 
-      // setTimeout(() => generateNewTile(), 0);
-      generateNewTile();
+      if(gotUpdated) {
+        generateNewTile();
+      }
+      
     };
 
     const checkKey = (event: any) => {
@@ -165,6 +183,7 @@ export default defineComponent({
 
     onMounted(() => {
       document.onkeydown = checkKey;
+      initTile();
     });
 
     onUnmounted(() => {
@@ -174,7 +193,10 @@ export default defineComponent({
     return {
       size,
       tiles,
-      Color,
+      defeat,
+      gameWon,
+      resetGame,
+      moveTiles,
     };
   }
 })
@@ -185,25 +207,50 @@ export default defineComponent({
     <div class="container">
       <div v-for="(n, index) in size*size" :key="index" class="block"></div>
     </div>
-    <div class="tile-container">
-      <div 
-        v-for="(tile, index) in tiles"
-        :key="index"
-        class="tile"
-        :style="{ 
-          top: (tile.y - 1)*100 + 'px',
-          left: (tile.x - 1)*100 + 'px',
-          backgroundColor: Color[`tile${tile.value}`]
-        }">
-        <span style="display: block; font-size: 10px">{{tile.id}}</span>
-        {{ tile.value }}
+    <SwipeDetect :callback="moveTiles">
+      <div class="tile-container">
+        <div 
+          v-for="(tile, index) in tiles"
+          :key="index"
+          class="tile"
+          :style="{ 
+            top: (tile.y - 1)*100 + 5 + 'px',
+            left: (tile.x - 1)*100 + 5 + 'px',
+          }"
+          :class="`tile-${tile.value}`">
+          {{ tile.value }}
+        </div>
       </div>
+    </SwipeDetect>
+    <div v-if="defeat" class="game-over"> 
+      <div class="announcement">
+        You lose!
+      </div>
+      <button class="btn" @click="resetGame">Try again</button>
+    </div>
+    <div v-if="gameWon" class="game-over"> 
+      <div class="announcement">
+        You win!
+      </div>
+      <button class="btn" @click="resetGame">Do it again</button>
     </div>
   </div>
 </template>
 
 <style lang="scss" scoped>
-$size: 100px;
+@import '../styles/variables.scss';
+
+.tile-2 { background: $color-2; }
+.tile-4 { background: $color-4; }
+.tile-8 { background: $color-8; }
+.tile-16 { background: $color-16; }
+.tile-32 { background: $color-32; }
+.tile-64 { background: $color-64; }
+.tile-128 { background: $color-128; }
+.tile-256 { background: $color-256; }
+.tile-512 { background: $color-512; }
+.tile-1024 { background: $color-1024; }
+.tile-2048 { background: $color-2048; }
 
 .wrapper {
   position: relative;
@@ -212,15 +259,17 @@ $size: 100px;
 .container {
   display: flex;
   flex-wrap: wrap;
-  width: $size*4;
-  height: $size*4;
+  width: $container-size;
+  height: $container-size;
+  background: $color-container;
+  padding: $spacing;
 }
 
 .block {
   width: $size;
   height: $size;
-  background: #999999;
-  box-shadow: 1px 1px inset black, -1px -1px inset black;
+  margin: $spacing;
+  background: $color-background;
 }
 
 .tile-container {
@@ -231,15 +280,46 @@ $size: 100px;
   right: 0;
 }
 
+.game-over {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: $color-game-over-background;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+}
+
+.announcement {
+  font-size: 32px;
+  margin-bottom: 16px;
+}
+
+.btn {
+  background: $color-black;
+  display: inline-block;
+  border: none;
+  padding: 1rem 2rem;
+  margin: 0;
+  text-decoration: none;
+  color: $color-white;
+  font-family: sans-serif;
+  cursor: pointer;
+  text-align: center;
+}
+
 .tile {
   position: absolute;
   width: $size;
   height: $size;
+  margin: $spacing;
   display: flex;
   justify-content: center;
   align-items: center;
   font-size: 32px;
-  color: white;
-  // transition: left 2s ease, top 2s ease;
+  color: $color-white;
 }
 </style>

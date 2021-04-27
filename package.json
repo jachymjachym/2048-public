@@ -1,6 +1,7 @@
 {
-  "name": "game",
-  "version": "0.0.0",
+  "name": "2048-game",
+  "author": "Jachym Koudela",
+  "version": "1.0.0",
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc --noEmit && vite build",
