@@ -5,7 +5,7 @@
       Get the <strong>2048</strong> tile to win
     </p>
     <p>
-      Use arrow keys or swipe on touch screen to move tiles
+      Use arrow keys or swipe on touch screen to move tiles. Combine matching tiles to create larger numbered tiles. When there are no more moves left, the game is over
     </p>
   </div>
 </template>
@@ -27,7 +27,7 @@ export default defineComponent({
 
   @media only screen and (min-width: 500px) {
     width: $container-size-lg;
-    font-size: 16px;
+    font-size: 14px;
   }
 }
 </style>

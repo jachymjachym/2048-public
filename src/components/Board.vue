@@ -31,16 +31,6 @@ export default defineComponent({
     const defeat = ref(false);
     const gameWon = ref(false);
 
-    const initTile = () => {
-      tiles.value = [];
-      tiles.value.push({
-        x: Math.floor(Math.random() * size + 1),
-        y: Math.floor(Math.random() * size + 1),
-        value: 2,
-        id: `tile${id.value}`
-      });
-    };
-
     const findEmptyCells = () => {
       const cells = [];
       for(let x: any = 1; x <= size; x++) {
@@ -51,6 +41,27 @@ export default defineComponent({
         }
       }
       return cells;
+    };
+
+    const generateNewTile = () => {
+      const tileValue = Math.random() > 0.9 ? 4 : 2;
+      const randomEmptyCell = findEmptyCells()[Math.floor(Math.random() * findEmptyCells().length)];
+      id.value += 1;
+      tiles.value.push({
+        x: randomEmptyCell.x,
+        y: randomEmptyCell.y,
+        value: tileValue,
+        id: `tile${id.value}`
+      });
+
+      if(!isPossibleMove()) {
+        defeat.value = true;
+      }
+    };
+
+    const initTile = () => {
+      tiles.value = [];
+      generateNewTile();
     };
 
     const isPossibleMove = (): boolean => {
@@ -73,22 +84,6 @@ export default defineComponent({
       });
 
       return isPossible;
-    };
-
-    const generateNewTile = () => {
-      const tileValue = Math.random() > 0.9 ? 4 : 2;
-      const randomEmptyCell = findEmptyCells()[Math.floor(Math.random() * findEmptyCells().length)];
-      id.value += 1;
-      tiles.value.push({
-        x: randomEmptyCell.x,
-        y: randomEmptyCell.y,
-        value: tileValue,
-        id: `tile${id.value}`
-      });
-
-      if(!isPossibleMove()) {
-        defeat.value = true;
-      }
     };
 
     const resetGame = () => {
