@@ -1,1 +1,4 @@
-@import "bootstrap/scss/bootstrap";
+html,
+body {
+  overscroll-behavior-y: contain;
+}
