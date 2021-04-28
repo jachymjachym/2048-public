@@ -1,7 +1,10 @@
-$size: 90px;
+@import 'bootstrap/scss/mixins';
+$size-sm: 65px;
+$size-lg: 90px;
 $spacing: 5px;
 
-$container-size: $size*4 + $spacing*8;
+$container-size-sm: $size-sm*4 + $spacing*8;
+$container-size-lg: $size-lg*4 + $spacing*8;
 
 $color-2: rgb(255, 215, 0);
 $color-4: rgb(54, 69, 79);

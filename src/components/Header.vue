@@ -22,6 +22,12 @@ export default defineComponent({
 @import '../styles/variables.scss';
 
 .header {
-  width: $container-size;
+  width: $container-size-sm;
+  font-size: 12px;
+
+  @media only screen and (min-width: 500px) {
+    width: $container-size-lg;
+    font-size: 16px;
+  }
 }
 </style>

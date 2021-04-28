@@ -22,6 +22,8 @@ export default defineComponent({
     SwipeDetect,
   },
   setup: () => {
+    const gridItem = ref(null);
+    const tileWidth = ref(0);
     const id = ref(1);
     const size = 4;
     const winningNumber = 2048;
@@ -183,6 +185,7 @@ export default defineComponent({
 
     onMounted(() => {
       document.onkeydown = checkKey;
+      tileWidth.value = gridItem.value.offsetWidth;
       initTile();
     });
 
@@ -197,6 +200,8 @@ export default defineComponent({
       gameWon,
       resetGame,
       moveTiles,
+      gridItem,
+      tileWidth,
     };
   }
 })
@@ -205,7 +210,7 @@ export default defineComponent({
 <template>
   <div class="wrapper">
     <div class="container">
-      <div v-for="(n, index) in size*size" :key="index" class="block"></div>
+      <div ref="gridItem" v-for="(n, index) in size*size" :key="index" class="grid-item"></div>
     </div>
     <SwipeDetect :callback="moveTiles">
       <div class="tile-container">
@@ -214,8 +219,8 @@ export default defineComponent({
           :key="index"
           class="tile"
           :style="{ 
-            top: (tile.y - 1)*100 + 5 + 'px',
-            left: (tile.x - 1)*100 + 5 + 'px',
+            top: (tile.y - 1) * (tileWidth + 10) + 5 + 'px',
+            left: (tile.x - 1) * (tileWidth + 10) + 5 + 'px',
           }"
           :class="`tile-${tile.value}`">
           {{ tile.value }}
@@ -259,17 +264,27 @@ export default defineComponent({
 .container {
   display: flex;
   flex-wrap: wrap;
-  width: $container-size;
-  height: $container-size;
+  width: $container-size-sm;
+  height: $container-size-sm;
   background: $color-container;
   padding: $spacing;
+
+  @media only screen and (min-width: 500px) {
+    width: $container-size-lg;
+    height: $container-size-lg;
+  }
 }
 
-.block {
-  width: $size;
-  height: $size;
+.grid-item {
+  width: $size-sm;
+  height: $size-sm;
   margin: $spacing;
   background: $color-background;
+
+  @media only screen and (min-width: 500px) {
+    width: $size-lg;
+    height: $size-lg;
+  }
 }
 
 .tile-container {
@@ -313,13 +328,18 @@ export default defineComponent({
 
 .tile {
   position: absolute;
-  width: $size;
-  height: $size;
+  width: $size-sm;
+  height: $size-sm;
   margin: $spacing;
   display: flex;
   justify-content: center;
   align-items: center;
   font-size: 32px;
   color: $color-white;
+
+  @media only screen and (min-width: 500px) {
+    width: $size-lg;
+    height: $size-lg;
+  }
 }
 </style>
